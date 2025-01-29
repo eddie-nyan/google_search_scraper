@@ -1,0 +1,10 @@
+:verbose: false
+:concurrency: 1
+:timeout: 30
+
+:queues:
+  - [google_search, 2]
+  - [default, 1]
+
+:limits:
+  google_search: 1 

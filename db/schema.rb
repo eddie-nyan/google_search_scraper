@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_01_26_180936) do
+ActiveRecord::Schema[8.0].define(version: 2025_01_28_150243) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -52,6 +52,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_01_26_180936) do
     t.index ["user_id"], name: "index_keyword_files_on_user_id"
   end
 
+  create_table "keywords", force: :cascade do |t|
+    t.bigint "keyword_file_id", null: false
+    t.string "name"
+    t.integer "search_volume"
+    t.integer "adwords_advertisers_count"
+    t.integer "total_links_count"
+    t.text "html_content"
+    t.string "status"
+    t.datetime "processed_at"
+    t.text "error_message"
+    t.jsonb "search_metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["keyword_file_id"], name: "index_keywords_on_keyword_file_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -68,4 +84,5 @@ ActiveRecord::Schema[8.0].define(version: 2025_01_26_180936) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "keyword_files", "users"
+  add_foreign_key "keywords", "keyword_files"
 end

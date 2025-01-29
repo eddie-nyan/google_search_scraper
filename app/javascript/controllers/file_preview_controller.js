@@ -111,6 +111,7 @@ export default class extends Controller {
     if (this.hasSubmitButtonTarget) {
       const hasFile = this.inputTarget.files && this.inputTarget.files.length > 0
       this.submitButtonTarget.disabled = !hasFile
+      this.submitButtonTarget.classList.toggle('invisible', !hasFile)
     }
   }
 

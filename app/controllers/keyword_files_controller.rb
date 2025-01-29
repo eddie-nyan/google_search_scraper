@@ -15,15 +15,18 @@ class KeywordFilesController < ApplicationController
   def create
     @keyword_file = current_user.keyword_files.build(keyword_file_params)
     @keyword_file.status = "pending"
+    @keyword_file.total_keywords = 0
 
     if params.dig(:keyword_file, :file).present?
       uploaded_file = params.dig(:keyword_file, :file)
       keyword_count = count_keywords(uploaded_file)
 
       if keyword_count > 0 && keyword_count <= 100
-        @keyword_file.total_keywords = keyword_count
+        # @keyword_file.total_keywords = keyword_count
+
         if @keyword_file.save
-          Rails.logger.info "File saved successfully with #{keyword_count} keywords"
+          # Process the keywords after successful save
+          @keyword_file.process_keywords
           flash[:success] = "File uploaded successfully! Processing has begun."
           redirect_to keyword_files_path
         else
@@ -60,7 +63,12 @@ class KeywordFilesController < ApplicationController
       content = uploaded_file.read
       uploaded_file.rewind
 
-      CSV.parse(content).count
+      count = 0
+      CSV.parse(content, headers: false) do |row|
+        keyword = row[0]&.strip
+        count += 1 if keyword.present?
+      end
+      count
     rescue StandardError => e
       Rails.logger.error "Error counting keywords: #{e.message}"
       0

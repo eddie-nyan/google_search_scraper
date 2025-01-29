@@ -25,5 +25,8 @@ module CxRubyChallenge
     # config.eager_load_paths << Rails.root.join("extras")
 
     config.assets.css_compressor = nil
+
+    # Use Sidekiq as the Active Job backend
+    config.active_job.queue_adapter = :sidekiq
   end
 end
