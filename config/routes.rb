@@ -1,3 +1,6 @@
+require "sidekiq/web"
+require "sidekiq/throttled/web"
+
 Rails.application.routes.draw do
   devise_for :users
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
@@ -24,5 +27,10 @@ Rails.application.routes.draw do
     member do
       get :results
     end
+  end
+
+  # Protect Sidekiq web UI with Devise authentication
+  authenticate :user do
+    mount Sidekiq::Web => "/sidekiq"
   end
 end

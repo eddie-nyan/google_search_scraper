@@ -1,0 +1,25 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  keyword_file: one
+  name: MyString
+  search_volume: 1
+  adwords_advertisers_count: 1
+  total_links_count: 1
+  html_content: MyText
+  status: MyString
+  processed_at: 2025-01-28 22:02:44
+  error_message: MyText
+  search_metadata: 
+
+two:
+  keyword_file: two
+  name: MyString
+  search_volume: 1
+  adwords_advertisers_count: 1
+  total_links_count: 1
+  html_content: MyText
+  status: MyString
+  processed_at: 2025-01-28 22:02:44
+  error_message: MyText
+  search_metadata: 

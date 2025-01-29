@@ -53,6 +53,58 @@ class KeywordFile < ApplicationRecord
     validate_file_size
   end
 
+  def process_keywords
+    return unless file.attached?
+
+    begin
+      content = file.download
+      keywords_count = 0
+
+      # Start a transaction to ensure data consistency
+      ActiveRecord::Base.transaction do
+        # Parse CSV content
+        CSV.parse(content) do |row|
+          keyword_name = row[0]&.strip
+          next if keyword_name.blank?
+
+          # Create keyword record and associate it with the keyword file
+          keyword = keywords.create!(
+            name: keyword_name,
+            status: "pending",
+            processed_at: nil,
+            search_volume: nil,
+            adwords_advertisers_count: nil,
+            total_links_count: nil,
+            html_content: nil,
+            search_metadata: {}
+          )
+
+          Rails.logger.info "Created keyword: #{keyword.name}"
+          keywords_count += 1
+        end
+
+        # Update keyword file status and count
+        update!(
+          total_keywords: keywords_count,
+          status: "processing"
+        )
+
+        Rails.logger.info "Successfully processed #{keywords_count} keywords"
+
+        # Enqueue the background job to process keywords with Google search
+        ProcessKeywordsJob.perform_later(self)
+      end
+
+    rescue StandardError => e
+      Rails.logger.error "Error processing CSV: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      update(
+        status: "failed"
+      )
+      raise e
+    end
+  end
+
   private
 
   def set_filename

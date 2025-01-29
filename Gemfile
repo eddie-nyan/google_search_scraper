@@ -65,4 +65,14 @@ end
 
 gem "devise"
 
+gem "httparty"
+
 gem "tailwindcss-rails", "~> 3.3"
+
+gem "selenium-webdriver"
+gem "webdriver-user-agent"
+
+gem "proxy_fetcher"
+
+gem "sidekiq"
+gem "sidekiq-throttled", "~> 1.2"  # For rate limiting
