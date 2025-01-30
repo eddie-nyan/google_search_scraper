@@ -9,7 +9,8 @@ class KeywordFilesController < ApplicationController
   end
 
   def show
-    @keywords = @keyword_file.keywords.order(created_at: :desc)
+    @keyword_file = current_user.keyword_files.find(params[:id])
+    @keywords = @keyword_file.keywords.order(created_at: :asc)
   end
 
   def create
@@ -50,6 +51,38 @@ class KeywordFilesController < ApplicationController
     @keywords = @keyword_file.keywords.order(created_at: :desc)
   end
 
+  def download
+    @keyword_file = current_user.keyword_files.find(params[:id])
+
+    respond_to do |format|
+      format.csv do
+        csv_data = generate_csv(@keyword_file)
+        send_data csv_data,
+                  filename: "#{@keyword_file.filename}_results.csv",
+                  type: "text/csv",
+                  disposition: "attachment"
+      end
+    end
+  end
+
+  def download_original
+    @keyword_file = current_user.keyword_files.find(params[:id])
+
+    if @keyword_file.file.attached?
+      # Use blob to get the file from ActiveStorage
+      send_data @keyword_file.file.download,
+                filename: @keyword_file.filename,
+                type: @keyword_file.file.content_type || "text/csv",
+                disposition: "attachment"
+    else
+      Rails.logger.error "Original file not found for keyword file: #{@keyword_file.id}"
+      redirect_to keyword_file_path(@keyword_file), alert: "Original file not found."
+    end
+  rescue StandardError => e
+    Rails.logger.error "Error downloading original file: #{e.message}"
+    redirect_to keyword_file_path(@keyword_file), alert: "Unable to download the original file."
+  end
+
   private
 
   def set_keyword_file
@@ -77,5 +110,25 @@ class KeywordFilesController < ApplicationController
 
   def keyword_file_params
     params.require(:keyword_file).permit(:file)
+  end
+
+  def generate_csv(keyword_file)
+    CSV.generate(headers: true) do |csv|
+      # Add headers
+      csv << [ "Keyword", "Status", "Search Volume", "Advertisers", "Total Links", "Search Time", "Processed At" ]
+
+      # Add data rows
+      keyword_file.keywords.each do |keyword|
+        csv << [
+          keyword.name,
+          keyword.status,
+          keyword.search_volume,
+          keyword.adwords_advertisers_count,
+          keyword.total_links_count,
+          keyword.search_metadata&.dig("search_time"),
+          keyword.processed_at&.strftime("%Y-%m-%d %H:%M:%S")
+        ]
+      end
+    end
   end
 end

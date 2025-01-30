@@ -1,0 +1,119 @@
+<div class="min-h-screen bg-gray-50 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <%# Header %>
+    <div class="mb-8">
+      <div class="sm:flex sm:items-center">
+        <div class="sm:flex-auto">
+          <h1 class="text-2xl font-bold text-gray-900">Keyword Files</h1>
+          <p class="mt-2 text-sm text-gray-700">
+            A list of all your keyword files and their processing status
+          </p>
+        </div>
+        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+          <%= link_to root_path, 
+              class: "inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" do %>
+            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Upload New File
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Files Grid %>
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <% @keyword_files.each do |file| %>
+        <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
+          <%# File Header %>
+          <div class="px-4 py-5 sm:px-6">
+            <div class="flex items-center justify-between">
+              <div class="flex-1 min-w-0">
+                <%= link_to keyword_file_path(file), class: "hover:text-indigo-600" do %>
+                  <h3 class="text-lg font-medium leading-6 text-gray-900 truncate">
+                    <%= file.filename %>
+                  </h3>
+                <% end %>
+                <p class="mt-1 text-sm text-gray-500">
+                  Uploaded <%= time_ago_in_words(file.created_at) %> ago
+                </p>
+              </div>
+              <div class="ml-4 flex-shrink-0">
+                <span class="px-2 py-1 text-xs font-medium rounded-full <%= status_color(file.status) %>">
+                  <%= file.status.capitalize %>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <%# File Stats %>
+          <div class="px-4 py-4 sm:px-6">
+            <dl class="grid grid-cols-2 gap-4">
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Keywords</dt>
+                <dd class="mt-1 text-lg font-semibold text-gray-900">
+                  <%= file.total_keywords %>
+                </dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Completed</dt>
+                <dd class="mt-1">
+                  <% completed_percent = file.total_keywords.positive? ? 
+                       (file.keywords.where(status: "completed").count.to_f / file.total_keywords * 100).round : 
+                       0 %>
+                  <div class="flex items-center">
+                    <div class="w-full bg-gray-200 rounded-full h-2 mr-2">
+                      <div class="bg-green-600 h-2 rounded-full" style="width: <%= completed_percent %>%"></div>
+                    </div>
+                    <span class="text-sm font-medium text-gray-900"><%= completed_percent %>%</span>
+                  </div>
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <%# Actions %>
+          <div class="px-4 py-4 sm:px-6 bg-gray-50">
+            <div class="flex justify-between items-center space-x-4">
+              <%= link_to keyword_file_path(file), 
+                  class: "flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" do %>
+                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                </svg>
+                View Details
+              <% end %>
+              <%= link_to download_keyword_file_path(file, format: :csv), 
+                  class: "flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                  data: { turbo: false } do %>
+                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Results
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Empty State %>
+    <% if @keyword_files.empty? %>
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No keyword files</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by uploading your first keyword file.</p>
+        <div class="mt-6">
+          <%= link_to root_path, 
+              class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" do %>
+            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Upload File
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div> 
