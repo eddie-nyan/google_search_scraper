@@ -41,6 +41,10 @@ class Keyword < ApplicationRecord
     status == "failed"
   end
 
+  def search_time
+    search_metadata&.dig("search_time")
+  end
+
   # enum status: {
   #   pending: 0,
   #   processing: 1,

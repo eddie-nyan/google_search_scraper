@@ -1,0 +1,155 @@
+<div class="min-h-screen bg-gray-50 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <%# Header Section %>
+    <div class="mb-8">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">
+            <%= link_to download_original_keyword_file_path(@keyword_file),
+                class: "hover:text-indigo-600 flex items-center group",
+                data: { turbo: false } do %>
+              <svg class="w-5 h-5 mr-2 text-gray-400 group-hover:text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              <%= @keyword_file.filename %>
+            <% end %>
+          </h1>
+          <p class="mt-1 text-sm text-gray-500">
+            Uploaded <%= time_ago_in_words(@keyword_file.created_at) %> ago
+          </p>
+        </div>
+        <div class="flex space-x-4">
+          <%= link_to root_path, 
+              class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" do %>
+            <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Back to Dashboard
+          <% end %>
+
+          <%= link_to download_keyword_file_path(@keyword_file, format: :csv),
+              class: "inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+              data: { turbo: false } do %>
+            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Download Results
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Stats Cards %>
+    <div class="mb-8">
+      <dl class="grid grid-cols-1 gap-5 sm:grid-cols-4">
+        <%# Status Card %>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="px-4 py-5 sm:p-6">
+            <dt class="text-sm font-medium text-gray-500 truncate">Status</dt>
+            <dd class="mt-1">
+              <span class="px-3 py-1 text-sm font-medium rounded-full <%= status_color(@keyword_file.status) %>">
+                <%= @keyword_file.status.capitalize %>
+              </span>
+            </dd>
+          </div>
+        </div>
+
+        <%# Total Keywords Card %>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="px-4 py-5 sm:p-6">
+            <dt class="text-sm font-medium text-gray-500 truncate">Total Keywords</dt>
+            <dd class="mt-1 text-3xl font-semibold text-gray-900">
+              <%= @keyword_file.total_keywords %>
+            </dd>
+          </div>
+        </div>
+
+        <%# Progress Card %>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="px-4 py-5 sm:p-6">
+            <dt class="text-sm font-medium text-gray-500 truncate">Progress</dt>
+            <dd class="mt-1">
+              <div class="relative pt-1">
+                <% completed_percent = @keyword_file.total_keywords.positive? ? 
+                     (@keyword_file.keywords.where(status: "completed").count.to_f / @keyword_file.total_keywords * 100).round : 
+                     0 %>
+                <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                  <div style="width:<%= completed_percent %>%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"></div>
+                </div>
+                <div class="text-right mt-1">
+                  <span class="text-sm font-semibold text-gray-900"><%= completed_percent %>%</span>
+                </div>
+              </div>
+            </dd>
+          </div>
+        </div>
+
+        <%# Last Updated Card %>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="px-4 py-5 sm:p-6">
+            <dt class="text-sm font-medium text-gray-500 truncate">Last Updated</dt>
+            <dd class="mt-1 text-sm text-gray-900">
+              <%= @keyword_file.updated_at.strftime("%Y-%m-%d %H:%M:%S") %>
+            </dd>
+          </div>
+        </div>
+      </dl>
+    </div>
+
+    <%# Keywords Table %>
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+      <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+        <h2 class="text-lg font-medium text-gray-900">Keywords</h2>
+        <p class="mt-1 text-sm text-gray-500">
+          Detailed results for each keyword in this file
+        </p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keyword</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Search Volume</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Advertisers</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Links</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Search Time</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processed At</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% @keyword_file.keywords.each do |keyword| %>
+              <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900"><%= keyword.name %></div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="px-2 py-1 text-xs font-medium rounded-full <%= status_color(keyword.status) %>">
+                    <%= keyword.status.capitalize %>
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= number_with_delimiter(keyword.search_volume) if keyword.search_volume %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= keyword.adwords_advertisers_count %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= keyword.total_links_count %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <% if keyword.search_metadata&.dig("search_time").present? %>
+                    <%= "#{keyword.search_metadata['search_time']}s" %>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= keyword.processed_at&.strftime("%Y-%m-%d %H:%M:%S") %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div> 

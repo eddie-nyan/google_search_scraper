@@ -122,12 +122,12 @@
         <div class="mt-8">
           <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
-              <h2 class="text-xl font-semibold text-gray-900">Your Keyword Files</h2>
-              <p class="mt-2 text-sm text-gray-700">A list of all your uploaded keyword files and their processing status.</p>
+              <h2 class="text-xl font-semibold text-gray-900">Recent Keyword Files</h2>
+              <p class="mt-2 text-sm text-gray-700">A list of your last 20 uploaded keyword files and their processing status.</p>
             </div>
           </div>
 
-          <div class="mt-8 flex flex-col">
+          <div class="mt-4 flex flex-col">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -135,43 +135,49 @@
                     <thead class="bg-gray-50">
                       <tr>
                         <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">File Name</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Keywords</th>
                         <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Uploaded</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Keywords</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Progress</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Uploaded At</th>
                         <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
                           <span class="sr-only">Actions</span>
                         </th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
-                      <% current_user.keyword_files.order(created_at: :desc).each do |file| %>
+                      <% @keyword_files.limit(20).each do |file| %>
                         <tr>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                            <%= file.filename %>
+                            <%= link_to download_original_keyword_file_path(file),
+                                class: "text-gray-900 hover:text-indigo-600 flex items-center group",
+                                data: { turbo: false } do %>
+                              <svg class="w-4 h-4 mr-1.5 text-gray-400 group-hover:text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              <%= file.filename %>
+                            <% end %>
+                          </td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full <%= status_color(file.status) %>">
+                              <%= file.status.capitalize %>
+                            </span>
                           </td>
                           <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             <%= file.total_keywords %>
                           </td>
                           <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 
-                              <%= case file.status
-                                  when "pending"
-                                    "bg-yellow-100 text-yellow-800"
-                                  when "processing"
-                                    "bg-blue-100 text-blue-800"
-                                  when "completed"
-                                    "bg-green-100 text-green-800"
-                                  else
-                                    "bg-red-100 text-red-800"
-                                  end %>">
-                              <%= file.status.capitalize %>
-                            </span>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                              <% completed_percent = (file.keywords.where(status: "completed").count.to_f / file.total_keywords * 100).round %>
+                              <div class="bg-green-600 h-2.5 rounded-full" style="width: <%= completed_percent %>%"></div>
+                            </div>
+                            <span class="text-xs text-gray-500 mt-1"><%= completed_percent %>%</span>
                           </td>
                           <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             <%= time_ago_in_words(file.created_at) %> ago
                           </td>
                           <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <%= link_to "View Results", keyword_file_path(file), class: "text-indigo-600 hover:text-indigo-900" %>
+                            <%= link_to "View Details", keyword_file_path(file), 
+                                class: "text-indigo-600 hover:text-indigo-900" %>
                           </td>
                         </tr>
                       <% end %>

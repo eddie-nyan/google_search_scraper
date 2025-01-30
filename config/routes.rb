@@ -26,6 +26,8 @@ Rails.application.routes.draw do
   resources :keyword_files do
     member do
       get :results
+      get :download, defaults: { format: "csv" }
+      get :download_original
     end
   end
 
