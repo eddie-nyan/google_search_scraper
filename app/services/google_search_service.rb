@@ -2,6 +2,9 @@ require "nokogiri"
 require "selenium-webdriver"
 require "proxy_fetcher"
 require "httparty"
+require "ostruct"
+require "net/http"
+require "openssl"
 
 class GoogleSearchService
   USER_AGENTS = [
@@ -26,22 +29,26 @@ class GoogleSearchService
   def initialize(keyword)
     @keyword = keyword
     @user_agent = USER_AGENTS.sample
-    @retry_count = 0
-    @use_proxies = false  # Set to true to enable proxy usage
-    @proxies = @use_proxies ? fetch_proxies : []
+    @use_proxies = true  # Enable proxy usage
+    @proxies = fetch_proxies
   end
 
   def process
+    driver = nil
     begin
-      search_results = fetch_search_results
+      proxy = get_working_proxy
+      options = configure_chrome_options(proxy)
+      driver = Selenium::WebDriver.for :chrome, options: options
 
-      organic_links = search_results.css("div.g a").map do |link|
-        href = link["href"]
-        extract_actual_url(href) if href.start_with?("/url?") # Filter non-result links
-      rescue
-        nil
-      end.compact
-      Rails.logger.info "Organic links: #{organic_links}"
+      search_results = perform_search(driver)
+
+      # Check for captcha/unusual traffic before proceeding
+      check_for_captcha!(driver)
+
+      if !search_results || !valid_search_results?(search_results)
+        Rails.logger.error "No valid search results found for keyword: #{@keyword.name}"
+        raise StandardError, "No valid search results - possible captcha"
+      end
 
       @keyword.update!(
         search_volume: extract_search_volume(search_results),
@@ -56,37 +63,55 @@ class GoogleSearchService
         }
       )
     rescue StandardError => e
-      @keyword.update!(
-        status: "failed",
-        error_message: e.message
-      )
+      Rails.logger.warn "Captcha detected: #{e.message}"
+      raise e  # Re-raise to trigger Sidekiq retry
+    rescue StandardError => e
+      Rails.logger.error "Search error for keyword '#{@keyword.name}': #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      @keyword.update!(status: "failed")
       raise e
+    ensure
+      driver&.quit
     end
   end
 
   private
 
-  def fetch_search_results
-    while @retry_count < MAX_RETRIES
-      proxy = @use_proxies ? @proxies.sample : nil
-      options = configure_chrome_options(proxy)
+  def get_working_proxy
+    return nil unless @use_proxies
+    return nil if @proxies.empty?
 
-      driver = Selenium::WebDriver.for :chrome, options: options
-
-      begin
-        result = perform_search(driver)
-        return result if result
-      rescue StandardError => e
-        handle_search_error(e)
-      ensure
-        driver.quit
+    3.times do  # Try up to 3 different proxies
+      proxy = @proxies.sample
+      if test_proxy(proxy)
+        Rails.logger.info "Found working proxy: #{proxy.addr}:#{proxy.port}"
+        return proxy
+      else
+        @proxies.delete(proxy)
       end
-
-      @retry_count += 1
-      rotate_proxy if @use_proxies && @retry_count % PROXY_ROTATION_COUNT == 0
     end
 
-    raise "Max retries reached for keyword: #{@keyword.name}"
+    Rails.logger.warn "No working proxies found, proceeding without proxy"
+    nil
+  end
+
+  def test_proxy(proxy)
+    return false unless proxy&.addr && proxy&.port
+
+    begin
+      uri = URI.parse("https://www.google.com")
+      http = Net::HTTP.new(uri.host, uri.port, proxy.addr, proxy.port.to_i)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      http.open_timeout = 10
+      http.read_timeout = 10
+
+      response = http.get("/")
+      response.code.to_i == 200
+    rescue StandardError => e
+      Rails.logger.debug "Proxy test failed for #{proxy.addr}:#{proxy.port} - #{e.message}"
+      false
+    end
   end
 
   def configure_chrome_options(proxy)
@@ -97,61 +122,25 @@ class GoogleSearchService
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
-    options.add_argument("--start-maximized")
 
-    # Enhanced anti-detection settings
+    # Anti-detection settings
     options.add_argument("--user-agent=#{@user_agent}")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--lang=en-US,en;q=0.9")
-    options.add_argument("--accept-lang=en-US,en;q=0.9")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-extensions")
     options.add_argument("--incognito")
 
-    # Additional stealth settings
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-software-rasterizer")
-    options.add_argument("--disable-dev-tools")
-    options.add_argument("--no-first-run")
-    options.add_argument("--no-default-browser-check")
-    options.add_argument("--disable-background-networking")
-    options.add_argument("--disable-sync")
-    options.add_argument("--disable-translate")
-    options.add_argument("--hide-scrollbars")
-    options.add_argument("--metrics-recording-only")
-    options.add_argument("--mute-audio")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-web-security")
+    # Add proxy if available
+    if proxy && proxy.addr && proxy.port
+      proxy_server = "#{proxy.addr}:#{proxy.port}"
+      options.add_argument("--proxy-server=#{proxy_server}")
+      Rails.logger.info "Using proxy: #{proxy_server}"
+    else
+      Rails.logger.info "No proxy being used for this request"
+    end
 
-    # Add WebGL and Canvas fingerprint randomization
-    options.add_argument("--disable-webgl")
-    options.add_argument("--disable-canvas-aa")
-    options.add_argument("--disable-2d-canvas-clip-aa")
-    options.add_argument("--disable-gl-drawing-for-tests")
-
-    # Additional preferences for stealth
+    # Additional preferences
     options.add_preference("profile.default_content_setting_values.notifications", 2)
     options.add_preference("credentials_enable_service", false)
     options.add_preference("profile.password_manager_enabled", false)
-    options.add_preference("profile.default_content_settings.popups", 0)
-    options.add_preference("profile.managed_default_content_settings.images", 1)
-    options.add_preference("profile.default_content_setting_values.cookies", 1)
-    options.add_preference("profile.cookie_controls_mode", 0)
-    options.add_preference("profile.block_third_party_cookies", false)
-    options.add_preference("profile.default_content_setting_values.plugins", 1)
-    options.add_preference("profile.content_settings.exceptions.plugins.*,*.per_resource.adobe-flash-player", 1)
-    options.add_preference("profile.content_settings.exceptions.plugins.*,*.per_resource.flash", 1)
-
-    # Add proxy if available
-    if proxy
-      begin
-        proxy_server = "#{proxy.addr}:#{proxy.port}"
-        options.add_argument("--proxy-server=#{proxy_server}")
-        Rails.logger.info "Using proxy: #{proxy_server}"
-      rescue StandardError => e
-        Rails.logger.error "Error setting proxy: #{e.message}"
-      end
-    end
 
     options
   end
@@ -205,7 +194,6 @@ class GoogleSearchService
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
 
-      // Add missing chrome properties
       window.chrome = {
         runtime: {},
         loadTimes: function() {},
@@ -225,25 +213,60 @@ class GoogleSearchService
 
   def simulate_typing_search(driver)
     begin
-      # Find search box
-      search_box = driver.find_element(name: "q")
-      search_box.click
-      sleep(rand(0.5..1.5))
+      # Wait for search box with multiple selectors
+      search_box = wait_for_search_box(driver)
 
-      # Type the search query with random delays between characters
-      @keyword.name.each_char do |char|
-        search_box.send_keys(char)
-        sleep(rand(0.1..0.3))
+      if search_box
+        search_box.click
+        sleep(rand(0.5..1.5))
+
+        # Type the search query with random delays between characters
+        @keyword.name.each_char do |char|
+          search_box.send_keys(char)
+          sleep(rand(0.1..0.3))
+        end
+
+        sleep(rand(0.5..1.5))
+        search_box.send_keys(:return)
+      else
+        # Fallback to direct URL if search box not found
+        direct_search(driver)
       end
-
-      sleep(rand(0.5..1.5))
-      search_box.send_keys(:return)
     rescue StandardError => e
       Rails.logger.error "Error during typing simulation: #{e.message}"
-      # Fallback to direct navigation if typing fails
-      search_query = URI.encode_www_form_component(@keyword.name)
-      driver.navigate.to "https://www.google.com/search?q=#{search_query}&hl=en"
+      direct_search(driver)
     end
+  end
+
+  def wait_for_search_box(driver)
+    wait = Selenium::WebDriver::Wait.new(timeout: 10)
+
+    # Try different selectors for the search box
+    selectors = [
+      { name: "q" },
+      { css: "input[name='q']" },
+      { css: "input[title='Search']" },
+      { css: "textarea[name='q']" },  # Google sometimes uses textarea
+      { xpath: "//input[@name='q']" },
+      { xpath: "//textarea[@name='q']" }
+    ]
+
+    selectors.each do |selector|
+      begin
+        return wait.until { driver.find_element(selector) }
+      rescue Selenium::WebDriver::Error::TimeoutError
+        next
+      end
+    end
+
+    nil
+  end
+
+  def direct_search(driver)
+    Rails.logger.info "Using direct search URL for keyword: #{@keyword.name}"
+    search_query = URI.encode_www_form_component(@keyword.name)
+    driver.navigate.to "https://www.google.com/search?q=#{search_query}&hl=en"
+    sleep(rand(3..5))  # Wait for page load
   end
 
   def simulate_pre_search_behavior(driver)
@@ -301,10 +324,7 @@ class GoogleSearchService
 
   def valid_search_results?(doc)
     return false if doc.css("body").empty?
-    return false if doc.text.include?("unusual traffic")
-    return false if doc.text.include?("captcha")
-    return false if doc.text.include?("automated requests")
-    return false unless doc.css("div#search").any?
+    return false if doc.css("div#search").empty?
     true
   end
 
@@ -323,13 +343,8 @@ class GoogleSearchService
     sleep(rand(20..40))  # Longer delay after error
   end
 
-  def rotate_proxy
-    @proxies = fetch_proxies
-  end
-
   def fetch_proxies
     begin
-      # Use a more reliable free proxy list
       response = HTTParty.get("https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt", timeout: 10)
 
       if response.success?
@@ -341,7 +356,7 @@ class GoogleSearchService
             port: port,
             working?: true
           )
-        end.compact
+        end.compact.shuffle  # Randomize the order
 
         Rails.logger.info "Fetched #{proxies.length} proxies"
         proxies
@@ -351,7 +366,6 @@ class GoogleSearchService
       end
     rescue StandardError => e
       Rails.logger.error "Error fetching proxies: #{e.message}"
-      # Return empty array if proxy fetching fails - will run without proxy
       []
     end
   end
@@ -385,11 +399,11 @@ class GoogleSearchService
   def extract_search_volume(doc)
     # Extract "About X results" from the page
     result_stats = doc.css("#result-stats").text
-    if result_stats =~ /About ([\d,]+) results/
-      $1.gsub(",", "").to_i
+
+    if result_stats =~ /([\d,\.]+)(?=\s)/
+      $1.gsub(/[^\d]/, "")
     end
   end
-
 
   def count_adwords_advertisers(doc)
     doc.css('div[data-text-ad="1"]').count
@@ -409,7 +423,6 @@ class GoogleSearchService
       end
     end.compact
 
-    # Log the found links for debugging
     Rails.logger.info "Found #{links.length} valid links"
     Rails.logger.debug "Links found: #{links.join("\n")}"
 
@@ -417,15 +430,15 @@ class GoogleSearchService
     @keyword.search_metadata ||= {}
     @keyword.search_metadata["all_links"] = links
 
-    # Return the count of valid links
     links.length
   end
 
   def extract_search_time(doc)
     # Extract search time from results
-    result_stats = doc.css("#result-stats").text
-    if result_stats =~ /\(([\d.]+) seconds\)/
-      $1.to_f
+    result_stats = doc.css("#result-stats nobr").text
+
+    if result_stats =~ /\(([\d.,]+)[^\d]*/
+      $1.gsub(",", ".").to_f
     end
   end
 
@@ -436,5 +449,16 @@ class GoogleSearchService
     params["q"]&.first || params["url"]&.first || google_url
   rescue URI::InvalidURIError
     google_url
+  end
+
+  def check_for_captcha!(driver)
+    page_source = driver.page_source.downcase
+    if page_source.include?("captcha") ||
+       page_source.include?("unusual traffic") ||
+       page_source.include?("automated requests") ||
+       page_source.include?("temporary error") ||
+       page_source.include?("please try again")
+      raise StandardError, "Google captcha or unusual traffic detected"
+    end
   end
 end

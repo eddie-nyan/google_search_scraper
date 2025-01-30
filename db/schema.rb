@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_01_28_150243) do
+ActiveRecord::Schema[8.0].define(version: 2025_01_30_085253) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -55,7 +55,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_01_28_150243) do
   create_table "keywords", force: :cascade do |t|
     t.bigint "keyword_file_id", null: false
     t.string "name"
-    t.integer "search_volume"
+    t.string "search_volume", limit: 20
     t.integer "adwords_advertisers_count"
     t.integer "total_links_count"
     t.text "html_content"
