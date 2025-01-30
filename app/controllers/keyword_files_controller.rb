@@ -23,10 +23,8 @@ class KeywordFilesController < ApplicationController
       keyword_count = count_keywords(uploaded_file)
 
       if keyword_count > 0 && keyword_count <= 100
-        # @keyword_file.total_keywords = keyword_count
 
         if @keyword_file.save
-          # Process the keywords after successful save
           @keyword_file.process_keywords
           flash[:success] = "File uploaded successfully! Processing has begun."
           redirect_to keyword_files_path

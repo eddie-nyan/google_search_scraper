@@ -76,3 +76,5 @@ gem "proxy_fetcher"
 
 gem "sidekiq"
 gem "sidekiq-throttled", "~> 1.2"  # For rate limiting
+
+gem "jwt"

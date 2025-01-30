@@ -139,9 +139,7 @@
                         <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Keywords</th>
                         <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Progress</th>
                         <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Uploaded At</th>
-                        <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                          <span class="sr-only">Actions</span>
-                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Action</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
@@ -176,8 +174,12 @@
                             <%= time_ago_in_words(file.created_at) %> ago
                           </td>
                           <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <%= link_to "View Details", keyword_file_path(file), 
-                                class: "text-indigo-600 hover:text-indigo-900" %>
+                            <%= link_to keyword_file_path(file), class: "text-indigo-600 hover:text-indigo-900 flex items-center" do %>
+                              <svg class="w-4 h-4 mr-1.5 text-indigo-600 group-hover:text-indigo-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                              </svg>
+                              View Details
+                            <% end %>
                           </td>
                         </tr>
                       <% end %>
