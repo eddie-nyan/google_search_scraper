@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["input", "preview", "filename", "fileInfo", "submitButton"]
-  
+
   connect() {
     this.hidePreview()
     this.initializeDragAndDrop()

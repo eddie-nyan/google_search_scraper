@@ -5,7 +5,7 @@ class Keyword < ApplicationRecord
 
   # Validations
   validates :name, presence: true
-  validates :search_volume, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: true }
+  validates :search_volume, presence: true, allow_nil: true
   validates :adwords_advertisers_count, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: true }
   validates :total_links_count, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: true }
   validates :status, presence: true, inclusion: { in: %w[pending processing completed failed] }
